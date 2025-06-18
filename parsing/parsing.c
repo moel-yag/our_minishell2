@@ -13,28 +13,53 @@ t_ast *create_ast_node(void)
     node->next = NULL;
     return node;
 }
+
+// Helper to free a string (for ft_lstclear)
+static void free_str(void *ptr)
+{
+    free(ptr);
+}
+
+// Helper to free a t_redir struct
+static void free_redir(void *ptr)
+{
+    t_redir *redir = (t_redir *)ptr;
+    free(redir->filename);
+    free(redir);
+}
+
 void free_ast(t_ast *ast)
 {
     if (!ast)
         return;
-    // ft_lstclear(&ast->args, free);
-    // ft_lstclear(&ast->redirections, free);
-    t_ast *next_node = ast->next;
-    while (next_node)
-    {
-        t_ast *temp = next_node;
-        next_node = next_node->next;
-        free_ast(temp);
-    }
-    ast->next = NULL; // Clear the next pointer to avoid dangling pointers
-    // Free the current node
-    // Note: We don't free ast->args and ast->redirections here because they are lists
-    // and will be freed by ft_lstclear.
-    // If they were allocated with malloc, we should free them here.
-    // However, since they are lists, we assume they are managed by the list functions.
-    // If args and redirections were allocated with malloc, we should free them here.
+    ft_lstclear(&ast->args, free_str);
+    ft_lstclear(&ast->redirections, free_redir);
+    // free(ast->cmd);
     free(ast);
 }
+
+// void free_ast(t_ast *ast)
+// {
+//     if (!ast)
+//         return;
+//     // ft_lstclear(&ast->args, free);
+//     // ft_lstclear(&ast->redirections, free);
+//     t_ast *next_node = ast->next;
+//     while (next_node)
+//     {
+//         t_ast *temp = next_node;
+//         next_node = next_node->next;
+//         free_ast(temp);
+//     }
+//     ast->next = NULL; // Clear the next pointer to avoid dangling pointers
+//     // Free the current node
+//     // Note: We don't free ast->args and ast->redirections here because they are lists
+//     // and will be freed by ft_lstclear.
+//     // If they were allocated with malloc, we should free them here.
+//     // However, since they are lists, we assume they are managed by the list functions.
+//     // If args and redirections were allocated with malloc, we should free them here.
+//     free(ast);
+// }
 void add_ast_node(t_ast **head, t_ast *new_node)
 {
     if (!head || !new_node)
@@ -51,16 +76,16 @@ void add_ast_node(t_ast **head, t_ast *new_node)
         current->next = new_node;
     }
 }
-// void free_ast_list(t_ast *head)
-// {
-//     t_ast *current = head;
-//     while (current)
-//     {
-//         t_ast *next = current->next;
-//         free_ast(current);
-//         current = next;
-//     }
-// }
+void free_ast_list(t_ast *head)
+{
+    t_ast *current = head;
+    while (current)
+    {
+        t_ast *next = current->next;
+        free_ast(current);
+        current = next;
+    }
+}
 // void print_ast(t_ast *ast)
 // {
 //     if (!ast)
@@ -78,11 +103,10 @@ void add_ast_node(t_ast **head, t_ast *new_node)
 
 bool ft_token_is_redirection(t_token_type type)
 {
-    return (type == TOKEN_REDIRECT_IN || type == TOKEN_REDIRECT_OUT || type == TOKEN_APPEND 
-            || type == TOKEN_HEREDOC);
+    return (type == TOKEN_REDIRECT_IN || type == TOKEN_REDIRECT_OUT || type == TOKEN_APPEND || type == TOKEN_HEREDOC);
 }
 
-void    ft_lst_push(t_list **head, void *value)
+void ft_lst_push(t_list **head, void *value)
 {
     t_list *new_node = ft_lstnew(value);
     if (!new_node)
@@ -115,30 +139,31 @@ t_ast *parser(const char *input)
         return NULL;
     }
     while (current)
-    {     
+    {
         if (current->type == TOKEN_EOF)
             break;
         else if (current->type == TOKEN_WORD)
-            ft_lst_push(&curr->args, current->value);
+            ft_lst_push(&curr->args, ft_strdup(current->value));
         else if (ft_token_is_redirection(current->type))
         {
             if (current->next && current->next->type == TOKEN_WORD)
             {
-                // t_redir *redir = malloc(sizeof(t_redir));
-                // if (!redir)
-                //     return NULL; // Handle memory allocation failure
-                // redir->type = current->type; // Set the type of redirection
-                // Set the filename for the redirection
-                current->value = current->next->value; // Get the filename from the next token
-                // char *redirection = current->next->value;
-                ft_lst_push(&curr->redirections, current);
-                current = current->next; // Skip the next word as it's already processed
+                t_redir *redir = malloc(sizeof(t_redir));
+                if (!redir)
+                {
+                    free_ast(ast);
+                    free_tokens(tokens);
+                    return NULL;
+                }
+                redir->type = current->type;
+                redir->filename = ft_strdup(current->next->value);
+                ft_lst_push(&curr->redirections, redir);
+                current = current->next; // Skip the filename token
             }
             else
             {
-                ft_lst_push(&curr->redirections, current->value);
-                printf("Redirection without target%s\n", current->value);
-                // free_ast(ast);
+                ft_putstr_fd("Redirection without target\n", 2);
+                free_ast(ast);
                 free_tokens(tokens);
                 return NULL;
             }
@@ -164,7 +189,7 @@ t_ast *parser(const char *input)
             add_ast_node(&ast, new_node);
             curr = new_node; // Move to the new node
         }
- 
+
         else
         {
             fprintf(stderr, "Unexpected token type: %d\n", current->type);

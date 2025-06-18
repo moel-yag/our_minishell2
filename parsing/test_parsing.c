@@ -1,8 +1,9 @@
 #include "../includes/minishell2.h"
 #include "../includes/minishell.h"
 #include "../includes/parsing.h"
+#include "../includes/expansion.h"
 
-void    print_ast(t_ast *ast)
+void print_ast(t_ast *ast)
 {
     int i = 0;
     if (!ast)
@@ -24,9 +25,8 @@ void    print_ast(t_ast *ast)
         t_list *redir = ast->redirections;
         while (redir)
         {
-            // printf("\t\t- %s\n", (char *)redir->content);
-            t_token *r = (t_token *)redir->content;
-            printf("\t\t- type: %s, filename: %s\n", ft_token_gettype(r->type), r->value);
+            t_redir *r = (t_redir *)redir->content;
+            printf("\t\t- type: %d, filename: %s\n", r->type, r->filename);
             redir = redir->next;
         }
         printf("\n");
@@ -42,7 +42,7 @@ void    print_ast(t_ast *ast)
 //     ft_lstclear(&ast->redirections, free); // free each t_redir*
 // }
 
-void    test_parsing(const char *input, const char *test_name)
+void test_parsing(const char *input, const char *test_name, t_env *env)
 {
     printf("\n=== Testing: %s ===\n", test_name);
     printf("Input: \"%s\"\n", input);
@@ -60,8 +60,15 @@ void    test_parsing(const char *input, const char *test_name)
         free_tokens(tokens);
         return;
     }
+    // Expansion integration
+    t_ast *curr = ast;
+    while (curr)
+    {
+        expand(curr, env, tokens);
+        curr = curr->next;
+    }
     print_ast(ast);
-    free_ast(ast);
+    free_ast_list(ast);
     free_tokens(tokens);
     printf("================================================\n");
 }
@@ -83,7 +90,7 @@ void    test_parsing(const char *input, const char *test_name)
 //     // Test 4: Command with output redirection
 //     printf("=== 4 - Testing Command with Output Redirection ===\n");
 //     test_parsing("ls > output.txt", "Command with output redirection");
-    
+
 //     // Test 5: Command with input redirection
 //     printf("=== 5 - Testing Command with Input Redirection ===\n");
 //     test_parsing("cat < input.txt", "Command with input redirection");
