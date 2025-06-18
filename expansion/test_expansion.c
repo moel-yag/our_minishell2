@@ -57,7 +57,7 @@ void test_expansion(const char *input, t_env *env)
     expand(ast, env, tokens);
     printf("After expansion:\n");
     print_args(tokens);
-    free_ast(ast);
+    // free_ast(ast);
     free_tokens(tokens);
 }
 
@@ -83,7 +83,7 @@ int main(void)
     test_expansion("echo \"$USER\"", env);
     test_expansion("echo $UNSETVAR", env);
     test_expansion("echo $HOME $USER", env);
-    test_expansion("echo \"Hello $USER, home: $HOME\"", env);
+    test_expansion("echo \"Hello $USER, home: $HOME\" | ls | cat file", env);
     test_expansion("echo 'Hello $USER, home: $HOME'", env);
     test_expansion("echo $PATH", env);
 

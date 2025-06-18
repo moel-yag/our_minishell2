@@ -89,47 +89,58 @@ bool prev_not_redirect(t_token *token) {
 
 // Helper: expand a single argument string
 static char *expand_arg(const char *arg, t_env *env, t_token *token) {
-    size_t len;
-    char *result;
-
-    len = ft_strlen(arg);
-    result = malloc(len * 4 + 1); // generous allocation
+    size_t len = ft_strlen(arg);
+    char *result = malloc(len * 4 + 1); // Generous allocation
     if (!result) return NULL;
-    size_t i, j;
-    i = 0;
-    j = 0;
-    // int in_squote = 0, in_dquote = 0;
-    while (arg[i])
-    {
-        // if (arg[i] == '\'' && !in_dquote) {
-        //     in_squote = !in_squote;
-        //     i++;
-        //     continue;
-        // }
-        // if (arg[i] == '"' && !in_squote) {
-        //     in_dquote = !in_dquote;
-        //     i++;
-        //     continue;
-        // }
-        if (arg[i] == '$' && prev_not_redirect(token) && token->is_quoted != 1
-            && (ft_isalpha(arg[i+1]) || arg[i+1] == '_'))
-        {
+
+    size_t i = 0, j = 0;
+    int in_squote = 0, in_dquote = 0;
+
+    while (arg[i]) {
+        // Handle single quotes
+        if (arg[i] == '\'' && !in_dquote) {
+            in_squote = !in_squote;
+            i++;
+            continue;
+        }
+
+        // Handle double quotes
+        if (arg[i] == '"' && !in_squote) {
+            in_dquote = !in_dquote;
+            i++;
+            continue;
+        }
+
+        // Handle variable expansion
+        if (arg[i] == '$' && !in_squote && prev_not_redirect(token) 
+            && (ft_isalpha(arg[i + 1]) || arg[i + 1] == '_')) {
             size_t var_start = i + 1;
             size_t var_len = 0;
-            while (ft_isalnum(arg[var_start + var_len]) || arg[var_start + var_len] == '_')
+
+            // Extract variable name
+            while (ft_isalnum(arg[var_start + var_len]) || arg[var_start + var_len] == '_') {
                 var_len++;
+            }
+
             char var_name[128];
             ft_strlcpy(var_name, arg + var_start, var_len + 1);
+
+            // Get variable value
             const char *val = get_env_val(env, var_name);
             size_t vlen = ft_strlen(val);
+
+            // Copy variable value to result
             ft_memcpy(result + j, val, vlen);
             j += vlen;
             i = var_start + var_len;
+            continue;
         }
-        else
-            result[j++] = arg[i++];
+
+        // Copy regular characters
+        result[j++] = arg[i++];
     }
-    result[j] = 0;
+
+    result[j] = '\0'; // Null-terminate the result
     return result;
 }
 
